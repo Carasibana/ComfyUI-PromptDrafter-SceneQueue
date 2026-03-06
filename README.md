@@ -1,5 +1,8 @@
 # ComfyUI-PromptDrafter-SceneQueue
 
+![Version](https://img.shields.io/badge/version-0.0.3-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 A companion pack for [ComfyUI-PromptDrafter](https://github.com/Carasibana/ComfyUI-PromptDrafter) that adds scene-based batch generation to ComfyUI.
 
 Set up named scenes, assign PromptDrafter presets to each node slot per scene, and run the workflow once — every combination renders automatically, producing one image per combination.

@@ -3,6 +3,8 @@ ComfyUI-PromptDrafter-SceneQueue
 Requires: comfyui-promptdrafter
 """
 
+__version__ = "0.0.3"
+
 import os
 import sys
 
