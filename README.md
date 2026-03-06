@@ -1,6 +1,6 @@
 # ComfyUI-PromptDrafter-SceneQueue
 
-![Version](https://img.shields.io/badge/version-0.0.3-blue)
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A companion pack for [ComfyUI-PromptDrafter](https://github.com/Carasibana/ComfyUI-PromptDrafter) that adds scene-based batch generation to ComfyUI.
@@ -97,7 +97,8 @@ This pack requires a different workflow layout from a standard single-image setu
 
 ## Changelog
 
-### v0.0.3
+### v1.0.0
+- **Public release**: Initial stable version
 - **Architecture rewrite**: replaced the re-queue loop with native `OUTPUT_IS_LIST` batch generation — all combinations now render in a single workflow run
 - Added **Scene Queue Distributor** node — auto-created and connected when Controller is placed; outputs preset text fields directly to PromptDrafter nodes
 - Distributor output slots are dynamic: slots are added/removed and wires are drawn automatically when nodes are added or removed via the Controller editor
