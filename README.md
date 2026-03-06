@@ -24,6 +24,10 @@ The Controller holds the editor UI where you set up your collection of scenes an
 
 The Distributor is automatically created and wired to the Controller when you place a Controller node. It receives one combination object per iteration. For each group (PromptDrafter node) in that combination it reads the assigned preset file and outputs the prompt text directly to the matching PromptDrafter node's text input fields (`positive_prompt`, `negative_prompt`, `lora_string`, or `prompt` depending on node type). Wires from the Distributor to your PromptDrafter nodes are created automatically when you add nodes via the Controller's editor UI.
 
+### Example Workflow
+
+![Scene Queue Workflow Example](screenshots/Screenshot_01.png)
+
 ### Data Flow
 
 ```
