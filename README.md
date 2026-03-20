@@ -1,6 +1,6 @@
 # ComfyUI-PromptDrafter-SceneQueue
 
-![Version](https://img.shields.io/badge/version-1.0.1-blue)
+![Version](https://img.shields.io/badge/version-1.0.2-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A companion pack for [ComfyUI-PromptDrafter](https://github.com/Carasibana/ComfyUI-PromptDrafter) that adds scene-based batch generation to ComfyUI.
@@ -100,6 +100,9 @@ This pack requires a different workflow layout from a standard single-image setu
 ---
 
 ## Changelog
+
+### v1.0.2
+- Added node icon (`assets/icon-scenequeue.svg`) for display in the ComfyUI registry
 
 ### v1.0.1
 - Fixed raw widget text (`sq_collection_data` JSON) being partially visible above the Scene Queue editor UI
