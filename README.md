@@ -94,6 +94,10 @@ This pack requires a different workflow layout from a standard single-image setu
 - The `push_lora_on_load` upstream sync feature of PromptDrafter is not used in this context — presets drive everything
 
 ---
+## Known Issues
+- Currently uses Browser popups for interactions with some buttons. causing issues for  the Desktop installation of ComfyUI , or Broswers blocking popups.
+  The next version is planned to refactor popups to use ComfyUI's interface and to retire Browser based popups.
+---
 
 ## Changelog
 
