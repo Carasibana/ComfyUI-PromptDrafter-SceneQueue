@@ -1,6 +1,6 @@
 [project]
 name = "comfyui-promptdrafter-scenequeue"
-version = "1.0.0"
+version = "1.0.1"
 description = "A ComfyUI companion pack for ComfyUI-PromptDrafter that adds scene-based batch generation — set up combinations of presets across multiple PromptDrafter nodes and render all of them in a single workflow run."
 readme = "README.md"
 license = {text = "MIT"}

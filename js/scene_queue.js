@@ -203,11 +203,15 @@ app.registerExtension({
                 node.sqDirty         = false;
                 node.sqDistributorId = null;
 
-                // Hide scene_file and sq_collection_data widgets — managed programmatically
+                // Hide scene_file and sq_collection_data widgets — managed programmatically.
+                // computeSize zeroes layout footprint; draw no-op stops canvas paint
+                // (LiteGraph calls draw() regardless of computeSize); inputEl hides
+                // any DOM element for multiline/textarea variants.
                 for (const wname of ["scene_file", "sq_collection_data"]) {
                     const w = node.widgets?.find(w => w.name === wname);
                     if (w) {
                         w.computeSize = () => [0, -4];
+                        w.draw = () => {};
                         if (w.inputEl) w.inputEl.style.display = "none";
                     }
                 }
@@ -217,18 +221,26 @@ app.registerExtension({
                 const domWidget = node.addDOMWidget("sq_editor", "SQ_EDITOR", container, {
                     serialize: false,
                 });
+                // Read node.size[1] dynamically so the editor always fills the
+                // node regardless of current height, with no cached value.
                 domWidget.computeSize = function (width) {
-                    return [width, node.sqEditorHeight || 400];
+                    return [width, Math.max(300, node.size[1] - 38)];
                 };
 
                 node.size[0] = Math.max(node.size[0], 620);
                 node.size[1] = Math.max(node.size[1], 480);
 
+                // Return a fixed minimum node size so LiteGraph allows the user
+                // to shrink the node freely. Without this override, LiteGraph
+                // calls node.computeSize() during resize to enforce a minimum,
+                // which sums domWidget.computeSize() — creating a feedback loop
+                // where any increase in height becomes the new permanent minimum.
+                node.computeSize = () => [620, 338];  // 300 min editor + 38 overhead
+
                 const origOnResize = node.onResize;
-                node.onResize = function (size) {
+                node.onResize = function () {
                     if (origOnResize) origOnResize.apply(this, arguments);
-                    node.sqEditorHeight = Math.max(300, size[1] - 80);
-                    if (domWidget) domWidget.computeSize = () => [size[0], node.sqEditorHeight];
+                    node.setDirtyCanvas(true, false);
                 };
 
                 const origOnNodeRemoved = app.graph.onNodeRemoved;
@@ -282,12 +294,33 @@ app.registerExtension({
             nodeType.prototype.onNodeCreated = function () {
                 if (onNodeCreated) onNodeCreated.apply(this, arguments);
 
+                const node = this;
+
                 // Hide sq_groups_config widget — managed programmatically by the Controller
-                const cfgWidget = this.widgets?.find(w => w.name === "sq_groups_config");
+                const cfgWidget = node.widgets?.find(w => w.name === "sq_groups_config");
                 if (cfgWidget) {
                     cfgWidget.computeSize = () => [0, -4];
                     if (cfgWidget.inputEl) cfgWidget.inputEl.style.display = "none";
                 }
+
+                // Disconnect output wires for all prompt/field slots (1+).
+                // Slot 0 (combination_tag) is left connected.
+                node.addWidget("button", "Disconnect Outputs", null, () => {
+                    for (let i = 1; i < node.outputs.length; i++) {
+                        node.disconnectOutput(i);
+                    }
+                    node.setDirtyCanvas(true, true);
+                });
+
+                // Reconnect output wires to configured PromptDrafter nodes,
+                // using the group config stored in the hidden sq_groups_config widget.
+                node.addWidget("button", "Reconnect Outputs", null, () => {
+                    const cfg = node.widgets?.find(w => w.name === "sq_groups_config");
+                    let groups = [];
+                    try { groups = JSON.parse(cfg?.value || "[]"); } catch { /* invalid json — leave empty */ }
+                    _rewireAllGroups(node, groups);
+                    node.setDirtyCanvas(true, true);
+                });
             };
         }
     },
@@ -765,7 +798,7 @@ function _showPresetPicker(node, scene, group, col, existingEntries, onDone) {
 
     SceneQueueAPI.listPresets(group.node_type).then((result) => {
         if (!result.success) {
-            alert(`[SceneQueue] Could not load presets for "${group.group_name}":\n${result.error || "Unknown error"}\n\nCheck that PromptDrafter is installed and its save path is configured correctly.`);
+            app.extensionManager.toast.add({ severity: "error", summary: "Could not load presets", detail: `"${group.group_name}": ${result.error || "Unknown error"}. Check that PromptDrafter is installed and its save path is configured correctly.`, life: 7000 });
             return;
         }
         const available = result.presets.filter(p => !existingNames.has(p));
@@ -773,9 +806,9 @@ function _showPresetPicker(node, scene, group, col, existingEntries, onDone) {
         if (available.length === 0) {
             const allCount = result.presets.length;
             if (allCount === 0) {
-                alert(`[SceneQueue] No presets found for "${group.group_name}" (${NODE_TYPE_DISPLAY[group.node_type] || group.node_type}).\n\nSave at least one preset in PromptDrafter first.`);
+                app.extensionManager.toast.add({ severity: "warn", summary: "No presets found", detail: `No presets found for "${group.group_name}" (${NODE_TYPE_DISPLAY[group.node_type] || group.node_type}). Save at least one preset in PromptDrafter first.`, life: 6000 });
             } else {
-                alert(`[SceneQueue] All ${allCount} preset(s) for "${group.group_name}" are already added to this scene.`);
+                app.extensionManager.toast.add({ severity: "info", summary: "All presets added", detail: `All ${allCount} preset(s) for "${group.group_name}" are already added to this scene.`, life: 4000 });
             }
             return;
         }
@@ -793,7 +826,7 @@ function _showPresetPicker(node, scene, group, col, existingEntries, onDone) {
         );
         document.body.appendChild(picker);
     }).catch((err) => {
-        alert(`[SceneQueue] Failed to fetch presets: ${err.message || err}`);
+        app.extensionManager.toast.add({ severity: "error", summary: "Failed to fetch presets", detail: err.message || String(err), life: 6000 });
     });
 }
 
@@ -807,7 +840,7 @@ function _showAddNodePicker(node, col, onDone) {
     );
 
     if (candidates.length === 0) {
-        alert("No compatible PromptDrafter nodes found in this workflow that aren't already added.");
+        app.extensionManager.toast.add({ severity: "warn", summary: "No compatible nodes", detail: "No compatible PromptDrafter nodes found in this workflow that aren't already added.", life: 5000 });
         return;
     }
 
@@ -845,7 +878,7 @@ function _showRetargetPicker(node, group, col, onDone) {
     const pdNodes = (app.graph._nodes || []).filter(n => n.type === group.node_type);
 
     if (pdNodes.length === 0) {
-        alert(`No nodes of type "${group.node_type}" found in this workflow.`);
+        app.extensionManager.toast.add({ severity: "warn", summary: "No nodes found", detail: `No nodes of type "${group.node_type}" found in this workflow.`, life: 5000 });
         return;
     }
 
@@ -933,24 +966,28 @@ function _buildPicker(title, items, onSelect) {
 
 function _confirmRemoveColumn(node, group, col, onDone) {
     const sceneCount = (col.scenes || []).length;
-    const confirmed  = confirm(
-        `Remove "${group.group_name}" group?\n\n` +
-        `This will remove the column and all its preset selections from ${sceneCount} scene(s). ` +
-        `This cannot be undone.`
-    );
-    if (!confirmed) return;
+    app.extensionManager.dialog.confirm({
+        title: "Remove Group",
+        message:
+            `Remove "${group.group_name}" group?\n\n` +
+            `This will remove the column and all its preset selections from ${sceneCount} scene(s). ` +
+            `This cannot be undone.`,
+        type: "delete",
+    }).then(confirmed => {
+        if (!confirmed) return;
 
-    col.groups     = (col.groups     || []).filter(g => g.group_id !== group.group_id);
-    col.loop_order = (col.loop_order || []).filter(id => id !== group.group_id);
-    for (const scene of (col.scenes || [])) {
-        if (scene.group_presets) delete scene.group_presets[group.group_id];
-    }
-    _markDirty(node);
+        col.groups     = (col.groups     || []).filter(g => g.group_id !== group.group_id);
+        col.loop_order = (col.loop_order || []).filter(id => id !== group.group_id);
+        for (const scene of (col.scenes || [])) {
+            if (scene.group_presets) delete scene.group_presets[group.group_id];
+        }
+        _markDirty(node);
 
-    // Rebuild Distributor outputs (removing this group's slots) and re-wire remaining
-    _pushGroupsToDistributor(node);
+        // Rebuild Distributor outputs (removing this group's slots) and re-wire remaining
+        _pushGroupsToDistributor(node);
 
-    onDone();
+        onDone();
+    });
 }
 
 
@@ -991,32 +1028,37 @@ async function _loadCollection(node, name) {
 
 
 function _newCollection(node, selectEl) {
-    const name = prompt("New collection name:", "my-collection");
-    if (!name || !name.trim()) return;
-    const clean = name.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "-");
+    app.extensionManager.dialog.prompt({
+        title: "New Collection",
+        message: "Enter a collection name:",
+        defaultValue: "my-collection",
+    }).then(name => {
+        if (!name || !name.trim()) return;
+        const clean = name.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "-");
 
-    node.sqCollection = {
-        schema_version:  2,
-        collection_name: clean,
-        combination_tag: { separator: "_", max_segment_length: 20 },
-        groups:          [],
-        loop_order:      [],
-        scenes:          [],
-    };
-    node.sqSceneFile = clean;
-    node.sqDirty     = true;
-    _syncCollectionWidget(node);
+        node.sqCollection = {
+            schema_version:  2,
+            collection_name: clean,
+            combination_tag: { separator: "_", max_segment_length: 20 },
+            groups:          [],
+            loop_order:      [],
+            scenes:          [],
+        };
+        node.sqSceneFile = clean;
+        node.sqDirty     = true;
+        _syncCollectionWidget(node);
 
-    const opt       = document.createElement("option");
-    opt.value       = clean;
-    opt.textContent = clean;
-    opt.selected    = true;
-    selectEl.appendChild(opt);
+        const opt       = document.createElement("option");
+        opt.value       = clean;
+        opt.textContent = clean;
+        opt.selected    = true;
+        selectEl.appendChild(opt);
 
-    const w = node.widgets?.find(w => w.name === "scene_file");
-    if (w) w.value = clean;
+        const w = node.widgets?.find(w => w.name === "scene_file");
+        if (w) w.value = clean;
 
-    node.sqRenderEditor?.();
+        node.sqRenderEditor?.();
+    });
 }
 
 

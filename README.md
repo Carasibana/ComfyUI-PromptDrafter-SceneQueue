@@ -1,6 +1,6 @@
 # ComfyUI-PromptDrafter-SceneQueue
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Version](https://img.shields.io/badge/version-1.0.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A companion pack for [ComfyUI-PromptDrafter](https://github.com/Carasibana/ComfyUI-PromptDrafter) that adds scene-based batch generation to ComfyUI.
@@ -96,6 +96,12 @@ This pack requires a different workflow layout from a standard single-image setu
 ---
 
 ## Changelog
+
+### v1.0.1
+- Fixed raw widget text (`sq_collection_data` JSON) being partially visible above the Scene Queue editor UI
+- Fixed blank space at the bottom of the Scene Queue Controller node — the editor UI now fills the full node height and can be freely resized larger or smaller
+- Added **Disconnect Outputs** and **Reconnect Outputs** buttons to the Distributor node — allows temporarily disconnecting all output wires so PromptDrafter node text fields can be edited manually, then reconnecting in one click
+- Replaced all browser `alert()`, `confirm()`, and `prompt()` calls with ComfyUI-native toast notifications and dialogs — fixes silent failures in ComfyUI Desktop (Electron) and browsers with popup blockers
 
 ### v1.0.0
 - **Public release**: Initial stable version
